@@ -1,0 +1,13 @@
+# Number of Images
+10
+# Filename 1/shutter_speed
+DSC_0123.png 0.03125
+DSC_0124.png 0.0625
+DSC_0126.png 0.125
+DSC_0127.png 0.25
+DSC_0128.png 0.5
+DSC_0129.png 1
+DSC_0131.png 2
+DSC_0132.png 4
+DSC_0133.png 8
+DSC_0135.png 16

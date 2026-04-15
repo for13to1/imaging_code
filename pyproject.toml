@@ -1,0 +1,11 @@
+[project]
+name = "imaging_code"
+version = "0.1.0"
+description = "imaging_code"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.4.4",
+    "matplotlib>=3.10.8",
+    "opencv-python>=4.13.0.92",
+]
