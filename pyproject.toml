@@ -8,4 +8,5 @@ dependencies = [
     "numpy>=2.4.4",
     "matplotlib>=3.10.8",
     "opencv-python>=4.13.0.92",
+    "black>=26.3.1",
 ]
