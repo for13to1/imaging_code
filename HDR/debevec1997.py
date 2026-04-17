@@ -184,17 +184,19 @@ def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
     times = []
 
     with open(list_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            # 跳过注释行和空行
-            if not line or line.startswith("#"):
-                continue
+        # [Strict Dataset Format] positional parsing
+        f.readline()  # 1. # Number of Images
+        line = f.readline().strip()
+        if not line:
+            raise ValueError("Missing image count in image_list.txt")
+        n_images = int(line)
+        f.readline()  # 3. # Filename ... (Header)
 
+        for _ in range(n_images):
+            line = f.readline()
+            if not line:
+                break
             parts = line.split()
-            # 如果这一行只有一个数字，那可能是 Number of Images，跳过它
-            if len(parts) < 2:
-                continue
-
             filename, time_val = parts[0], parts[1]
             img_path = str(dir_path / filename)
 
@@ -206,10 +208,10 @@ def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
 
             # OpenCV 默认读取为 BGR，转换为 RGB
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
             images.append(img_rgb)
-            # 根据表头 "1/shutter_speed" 说明，该列数值是曝光时间的倒数 (N)
-            # 因此，实际曝光时间 delta_t = 1.0 / N
+            # [Strict Dataset Format]
+            # According to the header "# Filename 1/shutter_speed",
+            # the value is 1/exposure_time. So actual time = 1.0 / value.
             times.append(1.0 / float(time_val))
 
     return images, np.array(times, dtype=np.float32)
@@ -742,8 +744,8 @@ if __name__ == "__main__":
     output_dir = base_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_path = output_dir / f"{args.dataset}.hdr"
-    plot_path = output_dir / f"{args.dataset}_crf.png"
+    output_path = output_dir / f"{args.dataset}_debevec1997.hdr"
+    plot_path = output_dir / f"{args.dataset}_debevec1997_crf.png"
 
     print(f"--- 1. Loading dataset: {args.dataset} ---")
     print(f"Path: {dataset_path}")
