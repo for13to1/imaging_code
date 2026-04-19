@@ -33,11 +33,17 @@ class Durand2002:
        Due to this ambiguity (which forces flawed min-max normalizations) and the fact that the
        original authors completely omitted it in their official 2006 C++ implementation
        (Paris & Durand), this heuristic has been intentionally excluded to ensure robustness.
+    6. Base Contrast: [ENGINEERING_ADAPTATION] The paper literally states "a base contrast of 5
+       worked well". However, mapping to a linear contrast ratio of 5:1 causes severe washing out.
+       The authors' later official C++ implementation for the Bilateral Grid (Paris & Durand, 2006;
+       see https://people.csail.mit.edu/sparis/code/src/tone_mapping.tar.gz) explicitly states in its
+       source code (tone_mapping.cpp): "meaningful values for the contrast are between 5.0 and 200.0.
+       50.0 always gives satisfying results." Thus, 50.0 is used here.
     """
 
     def __init__(
         self,
-        base_contrast: float = 5.0,
+        base_contrast: float = 50.0,
         sigma_r: float = 0.4,
         subsample_factor: int = 10,
     ):
@@ -45,7 +51,7 @@ class Durand2002:
         Initialize the TMO with paper-referenced and performance parameters.
 
         Args:
-            base_contrast: Target linear contrast ratio for the base layer (default 5.0 as per Section 6).
+            base_contrast: Target linear contrast ratio for the base layer (default 50.0 as per Paris & Durand 2006).
             sigma_r: Standard deviation in the intensity (log10) domain (default 0.4 as per Section 6).
             subsample_factor: Acceleration factor for spatial downsampling (default 10 as per Section 5.2).
         """
@@ -188,8 +194,8 @@ if __name__ == "__main__":
     group_alg.add_argument(
         "--base_contrast",
         type=float,
-        default=5.0,
-        help="Target linear contrast ratio for base layer (default 5.0)",
+        default=50.0,
+        help="Target linear contrast ratio for base layer (default 50.0)",
     )
     group_alg.add_argument(
         "--sigma_r",
