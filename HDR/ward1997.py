@@ -7,7 +7,6 @@ A visibility matching tone reproduction operator for high dynamic range scenes.
 IEEE Transactions on Visualization and Computer Graphics.
 """
 
-import argparse
 from pathlib import Path
 import traceback
 import numpy as np
@@ -425,6 +424,8 @@ def load_hdr(path: str) -> np.ndarray:
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Larson/Ward 1997 Reference Implementation"
     )

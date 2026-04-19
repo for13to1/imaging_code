@@ -9,7 +9,6 @@ ACM Transactions on Graphics (TOG), 21(3), 267-276.
 [PAPER_STRICT] Implementation following the mathematical formulas in the paper.
 """
 
-import argparse
 import numpy as np
 import cv2
 from pathlib import Path
@@ -114,6 +113,8 @@ def load_hdr(path):
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Reinhard 2002 TMO - Strict Implementation"
     )

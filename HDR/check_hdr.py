@@ -4,7 +4,6 @@ General-purpose HDR Integrity Audit Tool.
 Evaluates dynamic range, statistics, and numerical integrity of Radiance (.hdr) files.
 """
 
-import argparse
 import cv2
 import numpy as np
 
@@ -57,6 +56,8 @@ def audit_hdr(hdr_path):
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Audit HDR dynamic range and numerical integrity."
     )

@@ -4,7 +4,6 @@ General-purpose HDR Chromaticity Audit Tool.
 Evaluates color balance and channel statistics of Radiance (.hdr) files.
 """
 
-import argparse
 import cv2
 import numpy as np
 
@@ -50,6 +49,8 @@ def audit_color(hdr_path):
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Audit HDR chromaticity and color balance."
     )
