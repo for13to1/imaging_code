@@ -24,7 +24,7 @@ def audit_hdr(hdr_path):
     print("\n[1] Dynamic Range:")
     print(f"  Min/Max: {v_min:.6e} / {v_max:.6f}")
     print(f"  Mean/Med: {v_mean:.6f} / {v_med:.6f}")
-    
+
     # Dynamic Range in Stops
     if v_min > 0:
         stops = np.log2(v_max / v_min)
@@ -50,14 +50,16 @@ def audit_hdr(hdr_path):
     print(f"  Zero Count: {zeros} ({zeros/hdr.size*100:.2f}%)")
 
     # 4. Clipping Analysis
-    # Many displays clip at 1.0 if not tone mapped. 
+    # Many displays clip at 1.0 if not tone mapped.
     overlines = np.sum(hdr > 1.0)
     print(f"\n[4] Clipping (Values > 1.0):")
     print(f"  Count: {overlines} ({overlines/hdr.size*100:.2f}%)")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Audit HDR dynamic range and numerical integrity.")
+    parser = argparse.ArgumentParser(
+        description="Audit HDR dynamic range and numerical integrity."
+    )
     parser.add_argument("input", type=str, help="Path to the .hdr file")
     args = parser.parse_args()
     audit_hdr(args.input)

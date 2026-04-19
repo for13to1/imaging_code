@@ -24,7 +24,9 @@ def audit_color(hdr_path):
     # 1. Basic Stats
     print("\n[1] Channel Statistics (Linear):")
     for name, ch in [("Red", r), ("Green", g), ("Blue", b)]:
-        print(f"  {name:5}: Mean={np.mean(ch):.6f}, Max={np.max(ch):.4f}, Min={np.min(ch):.4f}")
+        print(
+            f"  {name:5}: Mean={np.mean(ch):.6f}, Max={np.max(ch):.4f}, Min={np.min(ch):.4f}"
+        )
 
     # 2. Chromaticity Balance (Relative to Green)
     mean_r, mean_g, mean_b = np.mean(r), np.mean(g), np.mean(b)
@@ -48,7 +50,9 @@ def audit_color(hdr_path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Audit HDR chromaticity and color balance.")
+    parser = argparse.ArgumentParser(
+        description="Audit HDR chromaticity and color balance."
+    )
     parser.add_argument("input", type=str, help="Path to the .hdr file")
     args = parser.parse_args()
     audit_color(args.input)
