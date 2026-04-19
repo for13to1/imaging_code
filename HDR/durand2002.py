@@ -187,7 +187,11 @@ if __name__ == "__main__":
         description="Durand 2002 Fast Bilateral TMO - Strict Reference Implementation"
     )
     parser.add_argument(
-        "input", type=str, nargs="?", default="HDR/dataset/memorial/memorial.hdr"
+        "input",
+        type=str,
+        nargs="?",
+        default="memorial",
+        help="Input path or dataset name",
     )
 
     group_alg = parser.add_argument_group("Algorithm Parameters")
@@ -216,18 +220,30 @@ if __name__ == "__main__":
     group_io.add_argument("--output", type=str, help="Output image path")
 
     args = parser.parse_args()
+    base_dir = Path(__file__).resolve().parent
+
+    # Smart path resolution
+    dataset_path = Path(args.input)
+    if not dataset_path.exists():
+        # Try finding the .hdr file inside the dataset folder
+        potential_path = base_dir / "dataset" / args.input / f"{args.input}.hdr"
+        if potential_path.exists():
+            dataset_path = potential_path
+        else:
+            # Fallback to just the directory if no .hdr found
+            dataset_path = base_dir / "dataset" / args.input
 
     if args.output is None:
-        out_dir = Path("HDR/output")
+        out_dir = base_dir / "output"
         out_dir.mkdir(parents=True, exist_ok=True)
-        args.output = str(out_dir / f"{Path(args.input).stem}_durand2002.png")
+        args.output = str(out_dir / f"{args.input}_durand2002.png")
 
-    print(f"--- Processing {args.input} with Fast Bilateral Filter ---")
+    print(f"--- Processing {dataset_path.name} with Fast Bilateral Filter ---")
     print(
         f"Parameters: Base Contrast={args.base_contrast}, sigma_r={args.sigma_r}, Subsample={args.subsample}"
     )
 
-    img_hdr = load_hdr(args.input)
+    img_hdr = load_hdr(str(dataset_path))
     tmo = Durand2002(
         base_contrast=args.base_contrast,
         sigma_r=args.sigma_r,

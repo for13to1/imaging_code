@@ -50,10 +50,33 @@ def audit_color(hdr_path):
 
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser(
         description="Audit HDR chromaticity and color balance."
     )
-    parser.add_argument("input", type=str, help="Path to the .hdr file")
+    parser.add_argument(
+        "input",
+        type=str,
+        nargs="?",
+        default="memorial",
+        help="Input path or dataset name",
+    )
     args = parser.parse_args()
-    audit_color(args.input)
+
+    # Smart path resolution
+    base_dir = Path(__file__).resolve().parent
+    dataset_path = Path(args.input)
+    if not dataset_path.exists():
+        # Try different possible paths for an audit tool
+        potential_paths = [
+            base_dir / "dataset" / args.input / f"{args.input}.hdr",
+            base_dir / "output" / f"{args.input}_debevec1997.hdr",
+            base_dir / "output" / f"{args.input}_mitsunaga1999.hdr",
+        ]
+        for p in potential_paths:
+            if p.exists():
+                dataset_path = p
+                break
+
+    audit_color(str(dataset_path))

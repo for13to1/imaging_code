@@ -430,7 +430,11 @@ if __name__ == "__main__":
         description="Larson/Ward 1997 Reference Implementation"
     )
     parser.add_argument(
-        "input", type=str, nargs="?", default="HDR/dataset/memorial/memorial.hdr"
+        "input",
+        type=str,
+        nargs="?",
+        default="memorial",
+        help="Input path or dataset name",
     )
     group_env = parser.add_argument_group("Environment & Display")
     group_env.add_argument(
@@ -488,15 +492,27 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    base_dir = Path(__file__).resolve().parent
 
-    # Auto-output path: HDR/output/<input>_ward1997.png
-    output_dir = Path("HDR/output")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = str(output_dir / f"{Path(args.input).stem}_ward1997.png")
+    # Smart path resolution
+    dataset_path = Path(args.input)
+    if not dataset_path.exists():
+        potential_path = base_dir / "dataset" / args.input / f"{args.input}.hdr"
+        if potential_path.exists():
+            dataset_path = potential_path
+        else:
+            dataset_path = base_dir / "dataset" / args.input
 
-    print(f"--- Processing {args.input} (FOV={args.fov}, Scale={args.scale}) ---")
+    # Auto-output path
+    out_dir = base_dir / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    args.output = str(out_dir / f"{args.input}_ward1997.png")
+
+    print(
+        f"--- Processing {dataset_path.name} (FOV={args.fov}, Scale={args.scale}) ---"
+    )
     try:
-        img_hdr = load_hdr(args.input)
+        img_hdr = load_hdr(str(dataset_path))
         tmo = Ward1997(
             enable_glare=args.glare,
             enable_acuity=args.acuity,
@@ -509,7 +525,7 @@ if __name__ == "__main__":
             tolerance=args.tolerance,
         )
         result = tmo.process(tmo.rgb_to_xyz(img_hdr), fov_deg=args.fov)
-        cv2.imwrite(output_path, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
-        print(f"✅ Result saved: {output_path}")
+        cv2.imwrite(args.output, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
+        print(f"✅ Result saved: {args.output}")
     except Exception:
         traceback.print_exc()

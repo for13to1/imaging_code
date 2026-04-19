@@ -359,10 +359,14 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="memorial")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        dataset_path = root / "dataset" / args.dataset
+
     out_dir = root / "output"
     out_dir.mkdir(exist_ok=True)
     try:
-        images, times = load_image_series(str(root / "dataset" / args.dataset))
+        images, times = load_image_series(str(dataset_path))
         rascal = Mitsunaga1999()
         print("--- Phase I: Calibration ---")
         rascal.calibrate(images, times[:-1] / times[1:])

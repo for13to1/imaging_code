@@ -739,8 +739,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     base_dir = Path(__file__).resolve().parent
-
-    dataset_path = base_dir / "dataset" / args.dataset
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        dataset_path = base_dir / "dataset" / args.dataset
     output_dir = base_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 

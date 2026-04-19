@@ -214,7 +214,7 @@ if __name__ == "__main__":
         description="Mertens 2007 Exposure Fusion - High-Performance Implementation"
     )
     parser.add_argument(
-        "input", type=str, nargs="?", default="HDR/dataset/living_room1"
+        "--dataset", type=str, default="memorial", help="Dataset name or path"
     )
     parser.add_argument("--w_c", type=float, default=1.0, help="Contrast weight")
     parser.add_argument("--w_s", type=float, default=1.0, help="Saturation weight")
@@ -225,15 +225,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    input_path = Path(args.input)
+    # Smart path resolution
+    base_dir = Path(__file__).resolve().parent
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        dataset_path = base_dir / "dataset" / args.dataset
+
     if args.output is None:
-        out_dir = Path("HDR/output")
+        out_dir = base_dir / "output"
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_name = input_path.stem if input_path.is_dir() else input_path.parent.name
-        args.output = str(out_dir / f"{out_name}_mertens2007.png")
+        args.output = str(out_dir / f"{args.dataset}_mertens2007.png")
 
     try:
-        images = load_exposure_sequence(args.input)
+        images = load_exposure_sequence(str(dataset_path))
+        print(f"--- Processing {dataset_path.name} with Exposure Fusion ---")
         print(f"Loaded {len(images)} images.")
         tmo = Mertens2007(w_c=args.w_c, w_s=args.w_s, w_e=args.w_e)
         result = tmo.process(images)

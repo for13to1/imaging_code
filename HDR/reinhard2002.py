@@ -119,7 +119,11 @@ if __name__ == "__main__":
         description="Reinhard 2002 TMO - Strict Implementation"
     )
     parser.add_argument(
-        "input", type=str, nargs="?", default="HDR/dataset/memorial/memorial.hdr"
+        "input",
+        type=str,
+        nargs="?",
+        default="memorial",
+        help="Input path or dataset name",
     )
     parser.add_argument("--key", type=float, default=0.18)
     parser.add_argument("--white", type=float, default=None)
@@ -127,21 +131,29 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default=None)
 
     args = parser.parse_args()
+    base_dir = Path(__file__).resolve().parent
+
+    # Smart path resolution
+    dataset_path = Path(args.input)
+    if not dataset_path.exists():
+        potential_path = base_dir / "dataset" / args.input / f"{args.input}.hdr"
+        if potential_path.exists():
+            dataset_path = potential_path
+        else:
+            dataset_path = base_dir / "dataset" / args.input
 
     if args.output is None:
-        out_dir = Path("HDR/output")
+        out_dir = base_dir / "output"
         out_dir.mkdir(parents=True, exist_ok=True)
         suffix = "global" if args.global_only else "local"
-        args.output = str(
-            out_dir / f"{Path(args.input).stem}_reinhard2002_{suffix}.png"
-        )
+        args.output = str(out_dir / f"{args.input}_reinhard2002_{suffix}.png")
 
     print(
-        f"--- Processing {args.input} (Mode={'Global' if args.global_only else 'Local'}) ---"
+        f"--- Processing {dataset_path.name} (Mode={'Global' if args.global_only else 'Local'}) ---"
     )
 
     try:
-        img_hdr = load_hdr(args.input)
+        img_hdr = load_hdr(str(dataset_path))
         tmo = Reinhard2002(
             key_value=args.key, l_white=args.white, use_local=not args.global_only
         )
