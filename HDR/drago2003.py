@@ -20,12 +20,11 @@ class Drago2003:
 
     Implementation Fidelity Categories:
     1. [PAPER_STRICT]: Formulas and logic strictly following Sections 3, 4, and 5.
-    2. [ENGINEERING_ADAPTATION]: Necessary enhancements for stability, edge handling,
-       and SDR display normalization (e.g., padding, color restoration, ld_max scaling).
-    3. [RATIONAL_OMISSION]:
+    2. [RATIONAL_OMISSION]:
        - Temporal smoothing for video (Section 5.1) is omitted for static processing.
-       - Conditional tiling threshold (Section 5) is replaced by unconditional tiling
-         for better vectorized performance, as suggested by the author's visual results.
+       - Conditional tiling threshold (Section 5) is replaced by unconditional tiling.
+       - Edge padding for 3x3 tiling is not specified in the paper.
+       - Fixation center defaults to geometric center when not specified.
     """
 
     def __init__(
@@ -110,11 +109,8 @@ class Drago2003:
         """
         img_xyz = cv2.cvtColor(img_hdr, cv2.COLOR_RGB2XYZ)
         Y = img_xyz[:, :, 1]
-
-        # [ENGINEERING_ADAPTATION] Epsilon handling for numerical stability.
-        eps = 1e-6
-        Y_safe = np.maximum(Y, eps)
-        log_Y = np.log(Y_safe)
+        # [ENGINEERING_ADAPTATION] Small epsilon to prevent log(-inf) for zero luminance pixels.
+        log_Y = np.log(np.maximum(Y, 1e-9))
         h, w = Y.shape
 
         # 1. World Adaptation (Section 3.1)
@@ -149,9 +145,6 @@ class Drago2003:
         L_w = Y * (self.exposure / L_wa_adj)
         L_wmax = np.max(Y) * (self.exposure / L_wa_adj)
 
-        if L_wmax < eps:
-            return np.zeros_like(img_hdr, dtype=np.uint8)
-
         # 4. Adaptive Logarithmic Mapping (Equation 4)
         # [PAPER_STRICT] bias_power is the exponent of the Perlin-Hoffert bias function.
         bias_power = np.log(self.bias) / np.log(0.5)
@@ -159,14 +152,15 @@ class Drago2003:
         if self.use_fast_mode:
             # [PAPER_STRICT] Section 5: Optimization using 3x3 pixel tiles.
             h3, w3 = (h + 2) // 3, (w + 2) // 3
-            # [ENGINEERING_ADAPTATION] Pad L_w to multiple of 3 to prevent data loss at edges.
+            # [RATIONAL_OMISSION] Edge padding not specified in paper; using edge replicate.
             pad_h, pad_w = h3 * 3 - h, w3 * 3 - w
             L_w_padded = np.pad(L_w, ((0, pad_h), (0, pad_w)), mode="edge")
 
             # Compute average luminance per 3x3 tile
             L_w_tile = L_w_padded.reshape(h3, 3, w3, 3).mean(axis=(1, 3))
 
-            ratio_tile = np.clip(L_w_tile / L_wmax, 0.0, 1.0)
+            # [ENGINEERING_ADAPTATION] Safe division for ratio computation
+            ratio_tile = np.divide(L_w_tile, L_wmax, out=np.zeros_like(L_w_tile), where=L_wmax > 1e-9)
             base_tile = 2.0 + np.power(ratio_tile, bias_power) * 8.0
 
             # Upsample base back to full resolution
@@ -174,24 +168,23 @@ class Drago2003:
             base = base_full[:h, :w]
         else:
             # [PAPER_STRICT] Standard per-pixel base calculation.
-            base = 2.0 + np.power(np.clip(L_w / L_wmax, 0.0, 1.0), bias_power) * 8.0
+            # [ENGINEERING_ADAPTATION] Safe division for ratio computation
+            ratio_w = np.divide(L_w, L_wmax, out=np.zeros_like(L_w), where=L_wmax > 1e-9)
+            base = 2.0 + np.power(ratio_w, bias_power) * 8.0
 
         # [PAPER_STRICT] Equation (4) adaptive logarithmic mapping.
         L_dmax_term = (self.ld_max * 0.01) / np.log10(L_wmax + 1.0)
         L_d = L_dmax_term * (self._log1p_fast(L_w) / np.log(base))
 
-        # 5. Restoration and Gamma (Section 4)
-        # [ENGINEERING_ADAPTATION] Color restoration via luminance ratio (industry standard).
-        # Note: OpenCV's implementation adds a 'saturation' parameter which
-        # is not present in the original Drago 2003 paper.
-
-        # [ENGINEERING_ADAPTATION] Normalize L_d to [0, 1] for sRGB/SDR output.
-        # For L_dmax=100, L_d is already ~[0, 1]. For higher L_dmax,
-        # we scale down to prevent clipping while preserving the compression curve.
-        L_d_norm = L_d / max(1.0, self.ld_max * 0.01)
-
-        img_mapped = np.clip(img_hdr * (L_d_norm / Y_safe)[..., np.newaxis], 0.0, 1.0)
-        return (self.apply_custom_gamma(img_mapped) * 255.0).astype(np.uint8)
+        # 5. Color Restoration and Gamma (Section 4)
+        # [PAPER_STRICT] Section 3.3: tone mapped Y replaces original Y in XYZ,
+        # preserving chromaticity coordinates (x, y). Then convert back to RGB.
+        # img_xyz has shape (H, W, 3) with channels [X, Y, Z]
+        # [ENGINEERING_ADAPTATION] Safe division to handle zero luminance pixels.
+        ratio = np.divide(L_d, Y, out=np.zeros_like(L_d), where=Y > 1e-9)
+        img_xyz_new = img_xyz * ratio[..., np.newaxis]
+        img_rgb = cv2.cvtColor(img_xyz_new.astype(np.float32), cv2.COLOR_XYZ2RGB)
+        return (self.apply_custom_gamma(img_rgb) * 255.0).astype(np.uint8)
 
 
 def load_hdr(path: str) -> np.ndarray:
