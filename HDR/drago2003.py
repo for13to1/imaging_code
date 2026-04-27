@@ -160,7 +160,9 @@ class Drago2003:
             L_w_tile = L_w_padded.reshape(h3, 3, w3, 3).mean(axis=(1, 3))
 
             # [ENGINEERING_ADAPTATION] Safe division for ratio computation
-            ratio_tile = np.divide(L_w_tile, L_wmax, out=np.zeros_like(L_w_tile), where=L_wmax > 1e-9)
+            ratio_tile = np.divide(
+                L_w_tile, L_wmax, out=np.zeros_like(L_w_tile), where=L_wmax > 1e-9
+            )
             base_tile = 2.0 + np.power(ratio_tile, bias_power) * 8.0
 
             # Upsample base back to full resolution
@@ -169,7 +171,9 @@ class Drago2003:
         else:
             # [PAPER_STRICT] Standard per-pixel base calculation.
             # [ENGINEERING_ADAPTATION] Safe division for ratio computation
-            ratio_w = np.divide(L_w, L_wmax, out=np.zeros_like(L_w), where=L_wmax > 1e-9)
+            ratio_w = np.divide(
+                L_w, L_wmax, out=np.zeros_like(L_w), where=L_wmax > 1e-9
+            )
             base = 2.0 + np.power(ratio_w, bias_power) * 8.0
 
         # [PAPER_STRICT] Equation (4) adaptive logarithmic mapping.
