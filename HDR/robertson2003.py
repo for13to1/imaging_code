@@ -148,7 +148,7 @@ class Robertson2003:
             # 1. Minimize with respect to each I_m
             # 2. Scale restriction
             # 3. Minimize with respect to each x_j
-            
+
             # Step 1: Estimate response I_m (Eq 11) using x_j from previous iteration
             new_response = np.zeros_like(response)
             card = np.zeros_like(response)
@@ -180,7 +180,7 @@ class Robertson2003:
             # Step 2: Scale restriction: I_128 = 1.0
             for ch in range(channels):
                 new_response[:, ch] /= new_response[128, ch] + 1e-8
-                
+
             response = new_response
 
             # Step 3: Estimate irradiances x_j (Eq 12) using new I_m
