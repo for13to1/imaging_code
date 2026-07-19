@@ -25,9 +25,10 @@ Algorithm Overview:
      $(C_{\mathrm{in}} / L_{\mathrm{in}})^s \cdot L_{\mathrm{out}}$ (Sec. 5).
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
+
+import cv2
+import numpy as np
 from scipy.fft import dctn, idctn
 
 
@@ -151,9 +152,7 @@ class Fattal2002:
 
         return grad_x, grad_y
 
-    def _compute_phi_k(
-        self, grad_x: np.ndarray, grad_y: np.ndarray, alpha: float
-    ) -> np.ndarray:
+    def _compute_phi_k(self, grad_x: np.ndarray, grad_y: np.ndarray, alpha: float) -> np.ndarray:
         r"""
         [PAPER_STRICT] Section 4:
 
@@ -211,9 +210,7 @@ class Fattal2002:
             gx_k, gy_k = self._central_diff_gradients(pyramid[k], k)
             phi_k = self._compute_phi_k(gx_k, gy_k, alpha)
 
-            Phi = (
-                Phi_up * phi_k
-            )  # [PAPER_STRICT] pointwise product $\Phi_k = L(\Phi_{k+1}) \cdot \varphi_k$
+            Phi = Phi_up * phi_k  # [PAPER_STRICT] pointwise product $\Phi_k = L(\Phi_{k+1}) \cdot \varphi_k$
 
         return Phi
 
@@ -374,7 +371,7 @@ class Fattal2002:
 
         # --- Gaussian pyramid ---
         pyramid = self._build_gaussian_pyramid(H)
-        num_levels = len(pyramid)
+        _num_levels = len(pyramid)
 
         # --- Alpha: $\alpha = 0.1 \times$ mean full-resolution gradient magnitude ---
         if self.alpha is None:
@@ -497,7 +494,7 @@ if __name__ == "__main__":
     out_p = args.output or str(base_dir / "output" / f"{in_p.stem}_fattal2002.png")
     Path(out_p).parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"--- Fattal 2002 ---")
+    print("--- Fattal 2002 ---")
     print(f"Input : {in_p}")
     print(
         f"Params: alpha={args.alpha or 'auto'}, beta={args.beta}, "

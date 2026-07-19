@@ -9,15 +9,14 @@ ACM Transactions on Graphics (TOG), 21(3), 267-276.
 [PAPER_STRICT] Implementation following the mathematical formulas in the paper.
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
+
+import cv2
+import numpy as np
 
 
 class Reinhard2002:
-    def __init__(
-        self, key_value=0.18, l_white=None, phi=8.0, epsilon=0.05, use_local=True
-    ):
+    def __init__(self, key_value=0.18, l_white=None, phi=8.0, epsilon=0.05, use_local=True):
         """
         Args:
             key_value (a): Geometric mean alignment target (default 0.18).
@@ -72,9 +71,7 @@ class Reinhard2002:
             # Selection of optimal scale s_m (Eq 8)
             # Starting at the lowest scale, seek the FIRST scale where |V| < epsilon
             best_v1 = v1_all[-1].copy()  # Default to largest scale
-            found = np.zeros(
-                l_scaled.shape, dtype=bool
-            )  # Track pixels that found their scale
+            found = np.zeros(l_scaled.shape, dtype=bool)  # Track pixels that found their scale
 
             for i in range(num_scales):
                 v1 = v1_all[i]
@@ -115,9 +112,7 @@ def load_hdr(path):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Reinhard 2002 TMO - Strict Implementation"
-    )
+    parser = argparse.ArgumentParser(description="Reinhard 2002 TMO - Strict Implementation")
     parser.add_argument(
         "input",
         type=str,
@@ -148,15 +143,11 @@ if __name__ == "__main__":
         suffix = "global" if args.global_only else "local"
         args.output = str(out_dir / f"{args.input}_reinhard2002_{suffix}.png")
 
-    print(
-        f"--- Processing {dataset_path.name} (Mode={'Global' if args.global_only else 'Local'}) ---"
-    )
+    print(f"--- Processing {dataset_path.name} (Mode={'Global' if args.global_only else 'Local'}) ---")
 
     try:
         img_hdr = load_hdr(str(dataset_path))
-        tmo = Reinhard2002(
-            key_value=args.key, l_white=args.white, use_local=not args.global_only
-        )
+        tmo = Reinhard2002(key_value=args.key, l_white=args.white, use_local=not args.global_only)
         result = tmo.process(img_hdr)
         cv2.imwrite(args.output, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
         print(f"✅ Result saved: {args.output}")

@@ -8,10 +8,10 @@ LIME: Low-light image enhancement via illumination map estimation.
 IEEE Transactions on Image Processing, 26(2), 982-993.
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
-from typing import Tuple, Optional
 
 
 class Guo2016:
@@ -43,7 +43,7 @@ class Guo2016:
         mu0: float = 1.0,
         rho: float = 2.0,
         delta: float = 1e-5,
-        denoise_sigma: Optional[float] = None,
+        denoise_sigma: float | None = None,
     ):
         """
         Initialize LIME parameters.
@@ -74,7 +74,7 @@ class Guo2016:
         self.delta = delta
         self.denoise_sigma = denoise_sigma
 
-    def _compute_gradient(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _compute_gradient(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute horizontal and vertical gradients using forward difference.
         [PAPER_STRICT] Section II-A: first order derivative filter.
@@ -108,7 +108,7 @@ class Guo2016:
 
         return div
 
-    def _compute_weight_map(self, T_hat: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _compute_weight_map(self, T_hat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute weight matrix W based on selected strategy.
         [PAPER_STRICT] Section II-D: Possible Weighting Strategies.
@@ -167,7 +167,6 @@ class Guo2016:
         """
         h, w = T_hat.shape
         # [ENGINEERING_ADAPTATION] Paper uses T^{(0)}=0; overwritten by Eq. (13) in first iter anyway.
-        T = T_hat.copy()
         G_h = np.zeros_like(T_hat)
         G_v = np.zeros_like(T_hat)
         Z_h = np.zeros_like(T_hat)
@@ -180,9 +179,9 @@ class Guo2016:
         D_h_fft = np.exp(-2j * np.pi * vx) - 1.0
         D_v_fft = np.exp(-2j * np.pi * vy) - 1.0
 
-        denom = 2.0 + mu * (np.abs(D_h_fft)**2 + np.abs(D_v_fft)**2)
+        denom = 2.0 + mu * (np.abs(D_h_fft) ** 2 + np.abs(D_v_fft) ** 2)
 
-        for t in range(self.max_iter):
+        for _t in range(self.max_iter):
             # T sub-problem (Eq. 13)
             # Compute D^T * (G - Z/mu)
             rhs_h = G_h - Z_h / mu
@@ -212,7 +211,7 @@ class Guo2016:
             mu = mu * self.rho
 
             # Update denominator (Critical for ALM-ADM correctness in next iteration)
-            denom = 2.0 + mu * (np.abs(D_h_fft)**2 + np.abs(D_v_fft)**2)
+            denom = 2.0 + mu * (np.abs(D_h_fft) ** 2 + np.abs(D_v_fft) ** 2)
 
             # Convergence check
             residual_norm = np.sqrt(np.sum(residual_h**2 + residual_v**2))
@@ -220,8 +219,6 @@ class Guo2016:
 
             if residual_norm <= self.delta * T_hat_norm:
                 break
-
-            T = T_new
 
         return T_new
 
@@ -248,7 +245,7 @@ class Guo2016:
         D_v_fft = np.exp(-2j * np.pi * vy) - 1.0
         W_mean_h = np.mean(W_tilde_h)
         W_mean_v = np.mean(W_tilde_v)
-        precond_denom = 1.0 + self.alpha * (W_mean_h * np.abs(D_h_fft)**2 + W_mean_v * np.abs(D_v_fft)**2)
+        precond_denom = 1.0 + self.alpha * (W_mean_h * np.abs(D_h_fft) ** 2 + W_mean_v * np.abs(D_v_fft) ** 2)
 
         def apply_precond(r: np.ndarray) -> np.ndarray:
             return np.real(np.fft.ifft2(np.fft.fft2(r.reshape(h, w)) / precond_denom)).ravel()
@@ -290,7 +287,7 @@ class Guo2016:
 
         y_channel = R_yuv[:, :, 0]
         sigma = self.denoise_sigma / 255.0 if self.denoise_sigma > 1.0 else self.denoise_sigma
-        y_denoised = bm3d.bm3d(y_channel, sigma, profile='np')
+        y_denoised = bm3d.bm3d(y_channel, sigma, profile="np")
         y_denoised = np.clip(y_denoised, 0, 1)
 
         R_yuv[:, :, 0] = y_denoised
@@ -370,15 +367,21 @@ if __name__ == "__main__":
     parser.add_argument("input", type=str, help="Input low-light image path")
     parser.add_argument("--alpha", type=float, default=0.15, help="Balance coefficient (default: 0.15)")
     parser.add_argument("--gamma", type=float, default=0.8, help="Gamma correction parameter (default: 0.8)")
-    parser.add_argument("--sigma", type=float, default=2.0, help="Gaussian kernel sigma for Strategy III (default: 2.0)")
-    parser.add_argument("--strategy", type=int, default=3, choices=[1, 2, 3],
-                        help="Weighting strategy: 1=TV, 2=Gradient, 3=RTV (default: 3)")
-    parser.add_argument("--fast", action="store_true", default=True,
-                        help="Use fast solver (default: True)")
-    parser.add_argument("--exact", action="store_true",
-                        help="Use exact solver (ALM-ADM)")
-    parser.add_argument("--denoise", type=float, metavar="SIGMA",
-                        help="Apply BM3D denoising with given noise sigma (e.g. 0.02)")
+    parser.add_argument(
+        "--sigma", type=float, default=2.0, help="Gaussian kernel sigma for Strategy III (default: 2.0)"
+    )
+    parser.add_argument(
+        "--strategy",
+        type=int,
+        default=3,
+        choices=[1, 2, 3],
+        help="Weighting strategy: 1=TV, 2=Gradient, 3=RTV (default: 3)",
+    )
+    parser.add_argument("--fast", action="store_true", default=True, help="Use fast solver (default: True)")
+    parser.add_argument("--exact", action="store_true", help="Use exact solver (ALM-ADM)")
+    parser.add_argument(
+        "--denoise", type=float, metavar="SIGMA", help="Apply BM3D denoising with given noise sigma (e.g. 0.02)"
+    )
     parser.add_argument("--output", type=str, help="Output path")
 
     args = parser.parse_args()
@@ -391,7 +394,7 @@ if __name__ == "__main__":
         in_p = base_dir / "dataset" / args.input
         if not in_p.exists():
             # Try common extensions
-            for ext in ['.png', '.jpg', '.jpeg', '.bmp', '.tif']:
+            for ext in [".png", ".jpg", ".jpeg", ".bmp", ".tif"]:
                 test_p = base_dir / "dataset" / f"{args.input}{ext}"
                 if test_p.exists():
                     in_p = test_p
@@ -410,7 +413,7 @@ if __name__ == "__main__":
         else:
             print(f"--- Processing {in_p.name} with LIME (Guo 2016) ---")
         print(f"Parameters: alpha={args.alpha}, gamma={args.gamma}, sigma={args.sigma}, strategy={args.strategy}")
-        solver_name = 'Fast (CG + FFT preconditioner)' if args.fast and not args.exact else 'Exact (ALM-ADM)'
+        solver_name = "Fast (CG + FFT preconditioner)" if args.fast and not args.exact else "Exact (ALM-ADM)"
         print(f"Solver: {solver_name}")
         if args.denoise is not None:
             print(f"  BM3D denoising sigma={args.denoise}")
@@ -427,6 +430,7 @@ if __name__ == "__main__":
 
         cv2.imwrite(args.output, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
         print(f"✅ Result saved: {args.output}")
-    except Exception as e:
+    except Exception:
         import traceback
+
         traceback.print_exc()

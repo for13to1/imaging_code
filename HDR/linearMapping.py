@@ -23,9 +23,10 @@ Example:
     >>> ldr = mapper.process(hdr, method="min_max_normalize")
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
 
 __all__ = ["LinearMapping", "load_hdr"]
 
@@ -103,9 +104,7 @@ class LinearMapping:
         img = np.clip(img_scaled, 0.0, 1.0)
         return self._to_uint8(self._apply_gamma(img))
 
-    def percentile_scale(
-        self, img_hdr: np.ndarray, low_pct: float = 1.0, high_pct: float = 99.0
-    ) -> np.ndarray:
+    def percentile_scale(self, img_hdr: np.ndarray, low_pct: float = 1.0, high_pct: float = 99.0) -> np.ndarray:
         """
         Method 4: Percentile-based linear scaling.
 
@@ -136,9 +135,7 @@ class LinearMapping:
         img = np.clip(img_norm, 0.0, 1.0)
         return self._to_uint8(self._apply_gamma(img))
 
-    def mean_std_normalize(
-        self, img_hdr: np.ndarray, target_mean: float = 0.5, target_std: float = 0.2
-    ) -> np.ndarray:
+    def mean_std_normalize(self, img_hdr: np.ndarray, target_mean: float = 0.5, target_std: float = 0.2) -> np.ndarray:
         """
         Method 5: Mean/std linear normalization.
 
@@ -212,9 +209,7 @@ class LinearMapping:
         elif method == "percentile_scale":
             return self.percentile_scale(img_hdr, low_pct=low_pct, high_pct=high_pct)
         elif method == "mean_std_normalize":
-            return self.mean_std_normalize(
-                img_hdr, target_mean=target_mean, target_std=target_std
-            )
+            return self.mean_std_normalize(img_hdr, target_mean=target_mean, target_std=target_std)
         else:
             raise ValueError(
                 f"Unknown method: {method}. "
@@ -244,9 +239,7 @@ def load_hdr(path: str) -> np.ndarray:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Linear Mapping Methods for HDR to LDR Conversion"
-    )
+    parser = argparse.ArgumentParser(description="Linear Mapping Methods for HDR to LDR Conversion")
     parser.add_argument("input", type=str, nargs="?", default="memorial")
     parser.add_argument(
         "--method",
@@ -262,9 +255,7 @@ if __name__ == "__main__":
         help="Linear mapping method to apply",
     )
     parser.add_argument("--gamma", type=float, default=2.2, help="Display gamma")
-    parser.add_argument(
-        "--exposure", type=float, default=1.0, help="Exposure multiplier"
-    )
+    parser.add_argument("--exposure", type=float, default=1.0, help="Exposure multiplier")
     parser.add_argument("--low-pct", type=float, default=1.0, help="Lower percentile")
     parser.add_argument("--high-pct", type=float, default=99.0, help="Upper percentile")
     parser.add_argument("--target-mean", type=float, default=0.5, help="Target mean")
@@ -277,9 +268,7 @@ if __name__ == "__main__":
     if not in_p.exists():
         in_p = Path(__file__).parent / "dataset" / args.input / f"{args.input}.hdr"
 
-    out_p = args.output or str(
-        Path(__file__).parent / "output" / f"{in_p.stem}_linear_{args.method}.png"
-    )
+    out_p = args.output or str(Path(__file__).parent / "output" / f"{in_p.stem}_linear_{args.method}.png")
     Path(out_p).parent.mkdir(parents=True, exist_ok=True)
 
     try:

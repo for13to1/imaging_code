@@ -6,10 +6,10 @@ Mertens, T., Kautz, J., & Van Reeth, F. (2007).
 Exposure fusion. In 15th Pacific Conference on Computer Graphics and Applications (PG'07) (pp. 382-390). IEEE.
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
-from typing import List, Optional
+
+import cv2
+import numpy as np
 
 
 class Mertens2007:
@@ -39,7 +39,7 @@ class Mertens2007:
         w_s: float = 1.0,
         w_e: float = 1.0,
         sigma_e: float = 0.2,
-        levels: Optional[int] = None,
+        levels: int | None = None,
     ):
         """
         Initialize the Exposure Fusion parameters.
@@ -92,7 +92,7 @@ class Mertens2007:
 
         return W
 
-    def build_gaussian_pyramid(self, img: np.ndarray, levels: int) -> List[np.ndarray]:
+    def build_gaussian_pyramid(self, img: np.ndarray, levels: int) -> list[np.ndarray]:
         """Builds a Gaussian pyramid."""
         pyr = [img.copy()]
         G = img
@@ -101,7 +101,7 @@ class Mertens2007:
             pyr.append(G)
         return pyr
 
-    def build_laplacian_pyramid(self, img: np.ndarray, levels: int) -> List[np.ndarray]:
+    def build_laplacian_pyramid(self, img: np.ndarray, levels: int) -> list[np.ndarray]:
         """Builds a Laplacian pyramid."""
         G_pyr = self.build_gaussian_pyramid(img, levels)
         L_pyr = []
@@ -113,7 +113,7 @@ class Mertens2007:
         L_pyr.append(G_pyr[-1])
         return L_pyr
 
-    def collapse_laplacian_pyramid(self, L_pyr: List[np.ndarray]) -> np.ndarray:
+    def collapse_laplacian_pyramid(self, L_pyr: list[np.ndarray]) -> np.ndarray:
         """Collapses a Laplacian pyramid."""
         levels = len(L_pyr)
         R = L_pyr[-1]
@@ -123,7 +123,7 @@ class Mertens2007:
             R = R + L_pyr[i]
         return R
 
-    def process(self, images: List[np.ndarray]) -> np.ndarray:
+    def process(self, images: list[np.ndarray]) -> np.ndarray:
         """
         Executes the exposure fusion pipeline using Two-Pass Streaming.
         (Implementation of Mertens 2007, Section 3.2)
@@ -169,24 +169,20 @@ class Mertens2007:
         return (R * 255.0).astype(np.uint8)
 
 
-def load_exposure_sequence(input_path: str) -> List[np.ndarray]:
+def load_exposure_sequence(input_path: str) -> list[np.ndarray]:
     """
     Loads and normalizes an image sequence.
     (Pre-processing step for Exposure Fusion)
     """
     path = Path(input_path)
     if path.is_file():
-        with open(path, "r") as f:
+        with open(path) as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
             parent = path.parent
-            img_paths = [
-                parent / p if not Path(p).is_absolute() else Path(p) for p in lines
-            ]
+            img_paths = [parent / p if not Path(p).is_absolute() else Path(p) for p in lines]
     elif path.is_dir():
         valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
-        img_paths = sorted(
-            [p for p in path.iterdir() if p.suffix.lower() in valid_exts]
-        )
+        img_paths = sorted([p for p in path.iterdir() if p.suffix.lower() in valid_exts])
     else:
         raise FileNotFoundError(f"Path {input_path} not found.")
 
@@ -210,17 +206,11 @@ def load_exposure_sequence(input_path: str) -> List[np.ndarray]:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Mertens 2007 Exposure Fusion - High-Performance Implementation"
-    )
-    parser.add_argument(
-        "--dataset", type=str, default="memorial", help="Dataset name or path"
-    )
+    parser = argparse.ArgumentParser(description="Mertens 2007 Exposure Fusion - High-Performance Implementation")
+    parser.add_argument("--dataset", type=str, default="memorial", help="Dataset name or path")
     parser.add_argument("--w_c", type=float, default=1.0, help="Contrast weight")
     parser.add_argument("--w_s", type=float, default=1.0, help="Saturation weight")
-    parser.add_argument(
-        "--w_e", type=float, default=1.0, help="Well-exposedness weight"
-    )
+    parser.add_argument("--w_e", type=float, default=1.0, help="Well-exposedness weight")
     parser.add_argument("--output", type=str, help="Output path")
 
     args = parser.parse_args()
@@ -244,7 +234,7 @@ if __name__ == "__main__":
         result = tmo.process(images)
         cv2.imwrite(args.output, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
         print(f"✅ Result saved: {args.output}")
-    except Exception as e:
+    except Exception:
         import traceback
 
         traceback.print_exc()

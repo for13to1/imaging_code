@@ -9,11 +9,11 @@ In Proceedings of the 24th annual conference on Computer graphics and interactiv
 """
 
 import json
+from pathlib import Path
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
-from typing import List, Tuple, Optional
 
 
 class Debevec1997:
@@ -60,7 +60,7 @@ class Debevec1997:
             dtype=np.float32,
         )
 
-    def _sample_pixels(self, images: List[np.ndarray]) -> List[Tuple[int, int]]:
+    def _sample_pixels(self, images: list[np.ndarray]) -> list[tuple[int, int]]:
         """
         [ENGINEERING_ADAPTATION] Section 2.1: Sample N locations for calibration.
         "pixels should be spatially well distributed... and sample the range of pixel values."
@@ -113,9 +113,7 @@ class Debevec1997:
         selected = []
         samples_per_bin = self.samples // n_bins
         for b in range(n_bins):
-            mask = (candidate_values >= bin_edges[b]) & (
-                candidate_values < bin_edges[b + 1]
-            )
+            mask = (candidate_values >= bin_edges[b]) & (candidate_values < bin_edges[b + 1])
             idxs = np.where(mask)[0]
             if len(idxs) > 0:
                 n_pick = min(samples_per_bin, len(idxs))
@@ -134,14 +132,12 @@ class Debevec1997:
             if len(remaining) > 0:
                 # Deterministic fill: take evenly spaced from remaining
                 step = len(remaining) / min(n_needed, len(remaining))
-                extra_indices = np.floor(
-                    np.arange(min(n_needed, len(remaining))) * step
-                ).astype(int)
+                extra_indices = np.floor(np.arange(min(n_needed, len(remaining))) * step).astype(int)
                 selected.extend([remaining[i] for i in extra_indices])
 
         return selected[: self.samples]
 
-    def calibrate(self, images: List[np.ndarray], times: np.ndarray) -> np.ndarray:
+    def calibrate(self, images: list[np.ndarray], times: np.ndarray) -> np.ndarray:
         """
         [PAPER_STRICT] Section 2.1: Solve the linear system g(Z_ij) = ln(E_i) + ln(t_j).
 
@@ -179,7 +175,7 @@ class Debevec1997:
             # 2. Fix the scale: g(Z_mid) = 0
             # Paper: Z_mid = (Z_min + Z_max) / 2 = 127.5 for 8-bit images.
             # We round to nearest integer for matrix indexing.
-            z_mid = int(round((self.ldr_size - 1) / 2.0))
+            z_mid = round((self.ldr_size - 1) / 2.0)
             A[row, z_mid] = 1.0
             B[row] = 0.0
             row += 1
@@ -200,9 +196,7 @@ class Debevec1997:
 
         return np.stack(inverse_responses, axis=1)
 
-    def reconstruct(
-        self, images: List[np.ndarray], times: np.ndarray, inverse_response: np.ndarray
-    ) -> np.ndarray:
+    def reconstruct(self, images: list[np.ndarray], times: np.ndarray, inverse_response: np.ndarray) -> np.ndarray:
         """
         [PAPER_STRICT] Section 2.2, Equation 6: Form the weighted average radiance.
         ln(E_i) = sum(w(Z_ij) * (g(Z_ij) - ln(t_j))) / sum(w(Z_ij))
@@ -291,7 +285,7 @@ class Debevec1997:
     def balance_channels(
         self,
         radiance_map: np.ndarray,
-        reference_color: Optional[Tuple[float, float, float]] = None,
+        reference_color: tuple[float, float, float] | None = None,
     ) -> np.ndarray:
         """
         [PAPER_STRICT] Section 2.6: Balance RGB channels.
@@ -304,11 +298,7 @@ class Debevec1997:
         should be scaled so that the pixel value (Z_mid, Z_mid, Z_mid) maps to
         a radiance with the same color ratios as C."
         """
-        if (
-            reference_color is None
-            or radiance_map.ndim == 2
-            or radiance_map.shape[-1] == 1
-        ):
+        if reference_color is None or radiance_map.ndim == 2 or radiance_map.shape[-1] == 1:
             # Default: already balanced by g(Z_mid) = 0 constraint
             return radiance_map
 
@@ -326,8 +316,8 @@ class Debevec1997:
         self,
         radiance_map: np.ndarray,
         known_radiance: float,
-        pos: Tuple[int, int],
-        channel: Optional[int] = None,
+        pos: tuple[int, int],
+        channel: int | None = None,
     ) -> np.ndarray:
         """
         [PAPER_STRICT] Section 2.5: Absolute Radiance Calibration.
@@ -394,8 +384,7 @@ class Debevec1997:
         # This means the weighted average MUST be performed in the logarithmic domain, just like Equation 6.
         # [ENGINEERING_ADAPTATION] Defensive: use np.maximum to avoid precision loss on tiny values instead of adding 1e-8
         merged_log_exposure = (
-            np.log(np.maximum(exposure1, 1e-8)) * weight1
-            + np.log(np.maximum(exposure2, 1e-8)) * weight2
+            np.log(np.maximum(exposure1, 1e-8)) * weight1 + np.log(np.maximum(exposure2, 1e-8)) * weight2
         ) / total_weight
         merged_exposure = np.exp(merged_log_exposure)
 
@@ -414,7 +403,7 @@ def save_rgbe(filename: str, radiance_map: np.ndarray):
         cv2.imwrite(filename, cv2.cvtColor(radiance_map, cv2.COLOR_RGB2BGR))
 
 
-def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
+def load_image_series(directory: str) -> tuple[list[np.ndarray], np.ndarray]:
     """Load image series and exposure times from a directory containing image_list.txt.
 
     Expected image_list.txt format (as used in the Debevec dataset):
@@ -440,34 +429,25 @@ def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
             f"  <filename> <shutter_speed>  (exposure_time = 1/shutter_speed)\n"
         )
 
-    with open(list_path, "r") as f:
+    with open(list_path) as f:
         f.readline()
         line = f.readline().strip()
         if not line:
-            raise ValueError(
-                f"Empty image list in {list_path}. "
-                f"Expected second line to contain the number of images."
-            )
+            raise ValueError(f"Empty image list in {list_path}. Expected second line to contain the number of images.")
         try:
             n = int(line)
         except ValueError as exc:
-            raise ValueError(
-                f"Expected integer image count on line 2 of {list_path}, got: '{line}'"
-            ) from exc
+            raise ValueError(f"Expected integer image count on line 2 of {list_path}, got: '{line}'") from exc
         f.readline()
         images, times = [], []
         for idx in range(n):
             line = f.readline().strip()
             if not line:
-                raise ValueError(
-                    f"Expected {n} image entries in {list_path}, "
-                    f"but line {idx + 4} is empty."
-                )
+                raise ValueError(f"Expected {n} image entries in {list_path}, but line {idx + 4} is empty.")
             parts = line.split()
             if len(parts) < 2:
                 raise ValueError(
-                    f"Invalid format on line {idx + 4} of {list_path}: '{line}'\n"
-                    f"Expected: '<filename> <shutter_speed>'"
+                    f"Invalid format on line {idx + 4} of {list_path}: '{line}'\nExpected: '<filename> <shutter_speed>'"
                 )
             img_path = dir_path / parts[0]
             img = cv2.imread(str(img_path))
@@ -491,9 +471,7 @@ def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
     return images, np.array(times, dtype=np.float32)
 
 
-def save_inverse_response(
-    filename: str, inverse_response: np.ndarray, metadata: Optional[dict] = None
-) -> None:
+def save_inverse_response(filename: str, inverse_response: np.ndarray, metadata: dict | None = None) -> None:
     """Save the inverse camera response function I(z) = f^{-1}(z) to JSON."""
     data = {
         "inverse_response": inverse_response.tolist(),
@@ -504,9 +482,9 @@ def save_inverse_response(
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def load_inverse_response(filename: str) -> Tuple[np.ndarray, dict]:
+def load_inverse_response(filename: str) -> tuple[np.ndarray, dict]:
     """Load the inverse camera response function I(z) = f^{-1}(z) from JSON."""
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         data = json.load(f)
     inverse_response = np.array(data["inverse_response"], dtype=np.float32)
     metadata = data.get("metadata", {})
@@ -517,7 +495,7 @@ def plot_inverse_response(
     inverse_response: np.ndarray,
     title: str = "Recovered Inverse Camera Response Function",
     log_scale: bool = True,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
 ) -> None:
     """Plot the inverse camera response function I(z) = f^{-1}(z)."""
     plt.figure(figsize=(8, 5))
@@ -527,16 +505,12 @@ def plot_inverse_response(
     labels = ["Red Channel", "Green Channel", "Blue Channel"]
     channels = inverse_response.shape[1] if len(inverse_response.shape) > 1 else 1
     for i in range(channels):
-        channel_resp = (
-            inverse_response[:, i] if channels > 1 else inverse_response.flatten()
-        )
+        channel_resp = inverse_response[:, i] if channels > 1 else inverse_response.flatten()
         color = colors[i] if channels == 3 else "k"
         label = labels[i] if channels == 3 else "Luminance"
         if log_scale:
             # [ENGINEERING_ADAPTATION] Prevent log(0) with small epsilon for plotting
-            plt.plot(
-                z, np.log(channel_resp + 1e-8), color=color, label=label, linewidth=2
-            )
+            plt.plot(z, np.log(channel_resp + 1e-8), color=color, label=label, linewidth=2)
             plt.ylabel(r"$\ln(E \cdot \Delta t)$")
         else:
             plt.plot(z, channel_resp, color=color, label=label, linewidth=2)
@@ -603,10 +577,7 @@ if __name__ == "__main__":
 
     try:
         images, times = load_image_series(str(dataset_path))
-        print(
-            f"Successfully loaded {len(images)} images, "
-            f"exposure time range: {min(times):.4f}s ~ {max(times):.4f}s"
-        )
+        print(f"Successfully loaded {len(images)} images, exposure time range: {min(times):.4f}s ~ {max(times):.4f}s")
 
         algo = Debevec1997(samples=args.samples, lambda_smooth=args.lambda_smooth)
 
@@ -616,7 +587,7 @@ if __name__ == "__main__":
         )
         inverse_response = algo.calibrate(images, times)
 
-        print(f"\n--- 3. Generating and saving inverse response curve plot ---")
+        print("\n--- 3. Generating and saving inverse response curve plot ---")
         plot_path_str = str(plot_path)
         plot_inverse_response(
             inverse_response,

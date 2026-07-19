@@ -8,10 +8,10 @@ Estimation-theoretic approach to dynamic range enhancement using multiple exposu
 Journal of Electronic Imaging, 12(2), 219-228.
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
-from typing import List, Tuple
 from scipy.interpolate import CubicSpline
 
 
@@ -53,7 +53,7 @@ class Robertson2003:
         weights = np.exp(-((y - mid) ** 2) / (2 * sigma**2))
         return weights.astype(np.float32)
 
-    def _get_valid_range(self, images: List[np.ndarray]) -> Tuple[int, int]:
+    def _get_valid_range(self, images: list[np.ndarray]) -> tuple[int, int]:
         """
         [PAPER_STRICT] Section 2 & 5: Determine zero and saturation points from histograms.
         "The zero and saturation points are taken as the peaks of these two histograms."
@@ -69,9 +69,7 @@ class Robertson2003:
         print(f"Detected valid range: [{z_min}, {z_max}]")
         return int(z_min), int(z_max)
 
-    def _compute_certainty_weights(
-        self, response: np.ndarray, valid_range: Tuple[int, int]
-    ) -> np.ndarray:
+    def _compute_certainty_weights(self, response: np.ndarray, valid_range: tuple[int, int]) -> np.ndarray:
         """
         [PAPER_STRICT] Section 3: Weights based on the derivative of the CRF on a log-exposure axis.
         """
@@ -111,7 +109,7 @@ class Robertson2003:
 
         return certainty.astype(np.float32)
 
-    def calibrate(self, images: List[np.ndarray], times: np.ndarray) -> np.ndarray:
+    def calibrate(self, images: list[np.ndarray], times: np.ndarray) -> np.ndarray:
         """
         [PAPER_STRICT] Section 4: Estimate the camera response function (CRF).
         Returns response function I_m (ldr_size, channels).
@@ -124,9 +122,7 @@ class Robertson2003:
         valid_range = self._get_valid_range(images)
 
         # Initialize I_m as linear function, I_128 = 1.0
-        response = np.tile(
-            np.arange(self.ldr_size, dtype=np.float32)[:, np.newaxis], (1, channels)
-        )
+        response = np.tile(np.arange(self.ldr_size, dtype=np.float32)[:, np.newaxis], (1, channels))
         response /= 128.0
 
         y = np.stack(images, axis=0)  # (N, H, W, C)
@@ -161,9 +157,7 @@ class Robertson2003:
                         weights=weighted_x.ravel(),
                         minlength=self.ldr_size,
                     )
-                    card[:, ch] += np.bincount(
-                        y[i, :, :, ch].ravel(), minlength=self.ldr_size
-                    )
+                    card[:, ch] += np.bincount(y[i, :, :, ch].ravel(), minlength=self.ldr_size)
 
             mask = card > 0
             new_response[mask] /= card[mask]
@@ -214,9 +208,7 @@ class Robertson2003:
         self.valid_range = valid_range
         return response
 
-    def reconstruct(
-        self, images: List[np.ndarray], times: np.ndarray, response: np.ndarray
-    ) -> np.ndarray:
+    def reconstruct(self, images: list[np.ndarray], times: np.ndarray, response: np.ndarray) -> np.ndarray:
         """
         [PAPER_STRICT] Section 3: Weighted average to form HDR radiance map.
         Uses certainty weights (derivative of CRF).
@@ -245,7 +237,7 @@ class Robertson2003:
         return x
 
 
-def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
+def load_image_series(directory: str) -> tuple[list[np.ndarray], np.ndarray]:
     """Load exposure sequence and exposure times from image_list.txt."""
     dir_path = Path(directory)
     list_path = dir_path / "image_list.txt"
@@ -255,7 +247,7 @@ def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
     images = []
     times = []
 
-    with open(list_path, "r", encoding="utf-8") as f:
+    with open(list_path, encoding="utf-8") as f:
         # Skip header lines
         f.readline()  # # Number of Images
         n_images = int(f.readline().strip())
@@ -292,9 +284,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Robertson 2003 HDR Reconstruction")
     parser.add_argument("input", type=str, nargs="?", default="memorial")
-    parser.add_argument(
-        "--iters", type=int, default=20, help="Max iterations for CRF estimation"
-    )
+    parser.add_argument("--iters", type=int, default=20, help="Max iterations for CRF estimation")
     parser.add_argument("--output", type=str, help="Output HDR filename")
 
     args = parser.parse_args()
@@ -304,9 +294,7 @@ if __name__ == "__main__":
     if not in_p.exists():
         in_p = Path(__file__).parent / "dataset" / args.input
 
-    out_p = args.output or str(
-        Path(__file__).parent / "output" / f"{in_p.name}_robertson2003.hdr"
-    )
+    out_p = args.output or str(Path(__file__).parent / "output" / f"{in_p.name}_robertson2003.hdr")
     Path(out_p).parent.mkdir(parents=True, exist_ok=True)
 
     try:

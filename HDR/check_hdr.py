@@ -46,22 +46,20 @@ def audit_hdr(hdr_path):
     print("\n[3] Numerical Integrity:")
     print(f"  NaN Count: {nans}")
     print(f"  Inf Count: {infs}")
-    print(f"  Zero Count: {zeros} ({zeros/hdr.size*100:.2f}%)")
+    print(f"  Zero Count: {zeros} ({zeros / hdr.size * 100:.2f}%)")
 
     # 4. Clipping Analysis
     # Many displays clip at 1.0 if not tone mapped.
     overlines = np.sum(hdr > 1.0)
-    print(f"\n[4] Clipping (Values > 1.0):")
-    print(f"  Count: {overlines} ({overlines/hdr.size*100:.2f}%)")
+    print("\n[4] Clipping (Values > 1.0):")
+    print(f"  Count: {overlines} ({overlines / hdr.size * 100:.2f}%)")
 
 
 if __name__ == "__main__":
     import argparse
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(
-        description="Audit HDR dynamic range and numerical integrity."
-    )
+    parser = argparse.ArgumentParser(description="Audit HDR dynamic range and numerical integrity.")
     parser.add_argument(
         "input",
         type=str,

@@ -6,10 +6,10 @@ Ward, G. (2003). Fast, robust image registration for compositing high dynamic ra
 photographs from hand-held exposures. Journal of Graphics Tools, 8(2), 17-30.
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
-from typing import List, Tuple, Optional
+
+import cv2
+import numpy as np
 
 
 class Ward2003:
@@ -56,9 +56,7 @@ class Ward2003:
 
         # [PAPER_STRICT] grey = (54 * red + 183 * green + 19 * blue) / 256
         # Using floating point for intermediate to avoid overflow before division
-        gray = (
-            54.0 * img_rgb[..., 0] + 183.0 * img_rgb[..., 1] + 19.0 * img_rgb[..., 2]
-        ) / 256.0
+        gray = (54.0 * img_rgb[..., 0] + 183.0 * img_rgb[..., 1] + 19.0 * img_rgb[..., 2]) / 256.0
         return gray.astype(np.uint8)
 
     def get_percentile(self, gray: np.ndarray, percentile: float) -> int:
@@ -72,9 +70,7 @@ class Ward2003:
                 return i
         return 255
 
-    def compute_bitmaps(
-        self, gray: np.ndarray, p: float = 50.0
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def compute_bitmaps(self, gray: np.ndarray, p: float = 50.0) -> tuple[np.ndarray, np.ndarray]:
         """[PAPER_STRICT] Section 2 & 2.1: Compute MTB and Exclusion Bitmap with fixed percentile."""
         # [PAPER_STRICT] "It is crucial that the same percentile be used for both exposures being registered."
         val = self.get_percentile(gray, p)
@@ -92,9 +88,7 @@ class Ward2003:
 
         return mtb, exc
 
-    def shift_bitmap(
-        self, bitmap: np.ndarray, dx: int, dy: int, clear_border: bool = True
-    ) -> np.ndarray:
+    def shift_bitmap(self, bitmap: np.ndarray, dx: int, dy: int, clear_border: bool = True) -> np.ndarray:
         """[PAPER_STRICT] Section 2.2 & 2.3: Shift bitmap with optional border clearing.
 
         Args:
@@ -105,20 +99,14 @@ class Ward2003:
         M = np.float32([[1, 0, dx], [0, 1, dy]])
         if clear_border:
             # [PAPER_STRICT] "shift 0s into the new image areas"
-            return cv2.warpAffine(
-                bitmap, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=0
-            )
+            return cv2.warpAffine(bitmap, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
         else:
             # [PAPER_STRICT] Section 2.3: "no point in clearing the median bitmaps ... We can
             # therefore save time by not clearing the median bitmaps."
             # Using BORDER_REPLICATE as a "no-op" for the border.
-            return cv2.warpAffine(
-                bitmap, M, (cols, rows), borderMode=cv2.BORDER_REPLICATE
-            )
+            return cv2.warpAffine(bitmap, M, (cols, rows), borderMode=cv2.BORDER_REPLICATE)
 
-    def get_exp_shift(
-        self, img1: np.ndarray, img2: np.ndarray, shift_bits: int
-    ) -> Tuple[int, int]:
+    def get_exp_shift(self, img1: np.ndarray, img2: np.ndarray, shift_bits: int) -> tuple[int, int]:
         """[PAPER_STRICT] Section 2.2: Recursive pyramid search (GetExpShift)."""
         cur_shift = [0, 0]
 
@@ -180,9 +168,7 @@ class Ward2003:
 
         return best_shift
 
-    def align(
-        self, images: List[np.ndarray]
-    ) -> Tuple[List[np.ndarray], List[Tuple[int, int]]]:
+    def align(self, images: list[np.ndarray]) -> tuple[list[np.ndarray], list[tuple[int, int]]]:
         """
         [PAPER_STRICT] Section 2: "In practice, we register between adjacent exposures".
         Aligns a sequence of images to the reference (middle exposure).
@@ -241,23 +227,19 @@ class Ward2003:
             dx, dy = final_shifts[i]
             rows, cols = img.shape[:2]
             M = np.float32([[1, 0, dx], [0, 1, dy]])
-            aligned = cv2.warpAffine(
-                img, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=0
-            )
+            aligned = cv2.warpAffine(img, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
             aligned_images.append(aligned)
             print(f"  - Image {i}: Shift = ({dx}, {dy})")
 
         return aligned_images, final_shifts
 
 
-def load_sequence(input_path: str) -> List[np.ndarray]:
+def load_sequence(input_path: str) -> list[np.ndarray]:
     """Loads an image sequence from a directory or file list."""
     path = Path(input_path)
     if path.is_dir():
         valid_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
-        img_paths = sorted(
-            [p for p in path.iterdir() if p.suffix.lower() in valid_exts]
-        )
+        img_paths = sorted([p for p in path.iterdir() if p.suffix.lower() in valid_exts])
     else:
         raise FileNotFoundError(f"Path {input_path} is not a directory.")
 
@@ -279,13 +261,9 @@ if __name__ == "__main__":
         default="memorial",
         help="Dataset name in dataset/ or full path",
     )
-    parser.add_argument(
-        "--bits", type=int, default=6, help="Shift bits (max shift = 2^bits)"
-    )
+    parser.add_argument("--bits", type=int, default=6, help="Shift bits (max shift = 2^bits)")
     parser.add_argument("--tol", type=int, default=4, help="Exclusion tolerance")
-    parser.add_argument(
-        "--output", type=str, help="Output directory for aligned images"
-    )
+    parser.add_argument("--output", type=str, help="Output directory for aligned images")
 
     args = parser.parse_args()
 
@@ -314,7 +292,7 @@ if __name__ == "__main__":
         else:
             print("✅ Alignment completed (use --output to save results).")
 
-    except Exception as e:
+    except Exception:
         import traceback
 
         traceback.print_exc()

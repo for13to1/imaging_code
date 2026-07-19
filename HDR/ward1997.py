@@ -7,10 +7,11 @@ A visibility matching tone reproduction operator for high dynamic range scenes.
 IEEE Transactions on Visualization and Computer Graphics.
 """
 
-from pathlib import Path
 import traceback
-import numpy as np
+from pathlib import Path
+
 import cv2
+import numpy as np
 
 
 class Ward1997:
@@ -154,9 +155,7 @@ class Ward1997:
             -1,
             (max(1, cols // target_size[0]), max(1, rows // target_size[1])),
         )
-        foveal_xyz = cv2.resize(
-            foveal_xyz, target_size, interpolation=cv2.INTER_NEAREST
-        )
+        foveal_xyz = cv2.resize(foveal_xyz, target_size, interpolation=cv2.INTER_NEAREST)
         foveal_y = foveal_xyz[:, :, 1]
 
         if not self.enable_glare:
@@ -167,11 +166,7 @@ class Ward1997:
         y_dir, x_dir = np.mgrid[0 : target_size[1], 0 : target_size[0]]
 
         ang_x = (x_dir / (target_size[0] - 1.0 + 1e-8) - 0.5) * rad_fov
-        ang_y = (
-            (y_dir / (target_size[1] - 1.0 + 1e-8) - 0.5)
-            * rad_fov
-            * (target_size[1] / target_size[0])
-        )
+        ang_y = (y_dir / (target_size[1] - 1.0 + 1e-8) - 0.5) * rad_fov * (target_size[1] / target_size[0])
 
         directions = np.stack(
             [
@@ -201,14 +196,10 @@ class Ward1997:
                 weights[np.isinf(weights)] = 0.0
 
             w_sum = np.sum(weights, axis=1, keepdims=True)
-            veil_xyz_flat[i:end_i] = self.VGLARE * (
-                np.dot(weights, xyz_flat) / (w_sum + 1e-8)
-            )
+            veil_xyz_flat[i:end_i] = self.VGLARE * (np.dot(weights, xyz_flat) / (w_sum + 1e-8))
 
         veil_foveal_xyz = veil_xyz_flat.reshape(target_size[1], target_size[0], 3)
-        veil_full_xyz = cv2.resize(
-            veil_foveal_xyz, (cols, rows), interpolation=cv2.INTER_LINEAR
-        )
+        veil_full_xyz = cv2.resize(veil_foveal_xyz, (cols, rows), interpolation=cv2.INTER_LINEAR)
 
         # Step 3: Add veil to foveal adaptation image (Eq 12)
         la_foveal = self.VFOVEAL * foveal_y + veil_foveal_xyz[:, :, 1]
@@ -227,16 +218,11 @@ class Ward1997:
         if self.enable_acuity:
             # [PAPER_STRICT] Eq 15: visual acuity function (cycles/deg)
             # Formula explicitly uses log10.
-            acuity_f = (
-                17.25 * np.arctan(1.4 * np.log10(np.maximum(la_abs_f, 1e-6)) + 0.35)
-                + 25.72
-            )
+            acuity_f = 17.25 * np.arctan(1.4 * np.log10(np.maximum(la_abs_f, 1e-6)) + 0.35) + 25.72
             # [ENGINEERING_ADAPTATION] Mapping R to Gaussian sigma.
             # Heuristic: sigma (deg) = 1 / (2 * acuity).
             # (cols/foveal_w) converts degrees to pixel units based on center 1° sample width.
-            sigma_full_px = cv2.resize(
-                1.0 / (2.0 * np.maximum(acuity_f, 1.0)), (cols, rows)
-            ) * (cols / foveal_w)
+            sigma_full_px = cv2.resize(1.0 / (2.0 * np.maximum(acuity_f, 1.0)), (cols, rows)) * (cols / foveal_w)
 
             max_sigma = float(np.max(sigma_full_px))
             if max_sigma < 0.5:
@@ -266,8 +252,7 @@ class Ward1997:
             # [ENGINEERING_ADAPTATION] Added 1e-8 epsilon in denominator.
             y_scot = np.maximum(Y * (1.33 * (1 + (Y + Z) / (X + 1e-8)) - 1.68), 0)
             k = np.clip(
-                (la_abs_full - self.BOT_MESOPIC)
-                / (self.TOP_MESOPIC - self.BOT_MESOPIC),
+                (la_abs_full - self.BOT_MESOPIC) / (self.TOP_MESOPIC - self.BOT_MESOPIC),
                 0,
                 1,
             )
@@ -314,9 +299,7 @@ class Ward1997:
             mapping_offset = ln_ld_mid - ln_avg
             return (ln_min, ln_max), mapping_offset
 
-        hist, bin_edges = np.histogram(
-            ln_samples, bins=self.n_bins, range=(ln_min, ln_max)
-        )
+        hist, bin_edges = np.histogram(ln_samples, bins=self.n_bins, range=(ln_min, ln_max))
         widths = bin_edges[1:] - bin_edges[:-1]
         centers = (bin_edges[1:] + bin_edges[:-1]) / 2.0
 
@@ -338,9 +321,7 @@ class Ward1997:
             delta_lw = self.threshold_function_ferwerda(lw)
 
             # [PAPER_STRICT] Eq 7c: Directly using natural log widths/ranges.
-            ceiling = (delta_ld / delta_lw) * (
-                total_n * widths * lw / (self.ln_ld_range * ld)
-            )
+            ceiling = (delta_ld / delta_lw) * (total_n * widths * lw / (self.ln_ld_range * ld))
 
             over = f > (ceiling + 1e-4)
             trimmings = np.sum(f[over] - ceiling[over])
@@ -359,9 +340,7 @@ class Ward1997:
         img_xyz = img_xyz.astype(np.float32)
 
         # Preparation & Glare (Steps 1-4)
-        la_foveal, img_xyz_veiled, fov_w = self._prepare_adaptation_map(
-            img_xyz, fov_deg
-        )
+        la_foveal, img_xyz_veiled, fov_w = self._prepare_adaptation_map(img_xyz, fov_deg)
 
         if self.calibrated:
             actual_scale = self.scale
@@ -373,14 +352,10 @@ class Ward1997:
             actual_scale = self.scale / (la_median + 1e-8)
 
         # Physiological Modeling (Steps 5-6)
-        img_xyz_processed = self._apply_physiological_models(
-            img_xyz_veiled, la_foveal, actual_scale, fov_w
-        )
+        img_xyz_processed = self._apply_physiological_models(img_xyz_veiled, la_foveal, actual_scale, fov_w)
 
         # Building Mapping (Steps 7-8)
-        bin_edges, p_mapping_data = self._build_tone_mapping_function(
-            la_foveal, actual_scale
-        )
+        bin_edges, p_mapping_data = self._build_tone_mapping_function(la_foveal, actual_scale)
         p_mapping = p_mapping_data if isinstance(p_mapping_data, np.ndarray) else None
 
         # Step 9: Apply histogram adjustment to image
@@ -399,17 +374,12 @@ class Ward1997:
 
         ld_full = np.exp(ln_ld_full)
 
-        img_xyz_mapped = (
-            img_xyz_processed
-            * (ld_full / (py_abs / actual_scale + 1e-8))[:, :, np.newaxis]
-        )
+        img_xyz_mapped = img_xyz_processed * (ld_full / (py_abs / actual_scale + 1e-8))[:, :, np.newaxis]
 
         # [PAPER_STRICT] Step 10: Translate CIE results to display RGB values
         img_rgb = self.xyz_to_rgb(img_xyz_mapped)
         # [PAPER_STRICT] Section 6 Step 10: Subtract black level Ld_min before gamma.
-        img_rgb = np.clip(
-            (img_rgb - self.ld_min) / (self.ld_max - self.ld_min + 1e-8), 0, 1
-        )
+        img_rgb = np.clip((img_rgb - self.ld_min) / (self.ld_max - self.ld_min + 1e-8), 0, 1)
 
         # [ENGINEERING_ADAPTATION] Gamma 2.2 approximation for sRGB display.
         # Paper does not specify a gamma value.
@@ -426,9 +396,7 @@ def load_hdr(path: str) -> np.ndarray:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Larson/Ward 1997 Reference Implementation"
-    )
+    parser = argparse.ArgumentParser(description="Larson/Ward 1997 Reference Implementation")
     parser.add_argument(
         "input",
         type=str,
@@ -437,9 +405,7 @@ if __name__ == "__main__":
         help="Input path or dataset name",
     )
     group_env = parser.add_argument_group("Environment & Display")
-    group_env.add_argument(
-        "--fov", type=float, default=140.0, help="Field of view in degrees"
-    )
+    group_env.add_argument("--fov", type=float, default=140.0, help="Field of view in degrees")
     group_env.add_argument(
         "--scale",
         type=float,
@@ -451,12 +417,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Input is already in absolute cd/m2 (skip auto-calibration)",
     )
-    group_env.add_argument(
-        "--ld-max", type=float, default=100.0, help="Max display luminance (Ld_max)"
-    )
-    group_env.add_argument(
-        "--ld-min", type=float, default=1.0, help="Min display luminance (Ld_min)"
-    )
+    group_env.add_argument("--ld-max", type=float, default=100.0, help="Max display luminance (Ld_max)")
+    group_env.add_argument("--ld-min", type=float, default=1.0, help="Min display luminance (Ld_min)")
 
     # Physiological Models
     group_phys = parser.add_argument_group("Physiological Models (Toggles)")
@@ -481,9 +443,7 @@ if __name__ == "__main__":
 
     # Advanced Parameters
     group_adv = parser.add_argument_group("Algorithm Parameters")
-    group_adv.add_argument(
-        "--bins", type=int, default=100, help="Number of histogram bins (default 100)"
-    )
+    group_adv.add_argument("--bins", type=int, default=100, help="Number of histogram bins (default 100)")
     group_adv.add_argument(
         "--tolerance",
         type=float,
@@ -508,9 +468,7 @@ if __name__ == "__main__":
     out_dir.mkdir(parents=True, exist_ok=True)
     args.output = str(out_dir / f"{args.input}_ward1997.png")
 
-    print(
-        f"--- Processing {dataset_path.name} (FOV={args.fov}, Scale={args.scale}) ---"
-    )
+    print(f"--- Processing {dataset_path.name} (FOV={args.fov}, Scale={args.scale}) ---")
     try:
         img_hdr = load_hdr(str(dataset_path))
         tmo = Ward1997(

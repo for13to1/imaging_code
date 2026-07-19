@@ -5,12 +5,11 @@ Mitsunaga 1999 Radiometric Self-Calibration (RASCAL).
 [CAVE_SUPPLEMENT]: Engineering logic found in the author's CAVE-RASCAL C++ source.
 """
 
-from pathlib import Path
-from typing import List, Tuple
 import struct
-import numpy as np
+from pathlib import Path
+
 import cv2
-import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import lsq_linear
 
 
@@ -37,7 +36,7 @@ class Mitsunaga1999:
         self.channel_coeffs = [None] * 3
         self.channel_ratios = [None] * 3
 
-    def _get_samples(self, images: List[np.ndarray]) -> List[np.ndarray]:
+    def _get_samples(self, images: list[np.ndarray]) -> list[np.ndarray]:
         """[PAPER_STRICT] Section 6.1 & [CAVE_SUPPLEMENT]: Flat area selection."""
         # Use the middle exposure as the reference for stability
         ref_idx = len(images) // 2
@@ -74,30 +73,22 @@ class Mitsunaga1999:
             bin_m = (flat_lum >= bins[i]) & (flat_lum < bins[i + 1]) & flat_mask_rav
             idx = np.where(bin_m)[0]
             if idx.size > 0:
-                valid_indices.extend(
-                    np.random.choice(idx, min(samples_per_bin, idx.size), replace=False)
-                )
+                valid_indices.extend(np.random.choice(idx, min(samples_per_bin, idx.size), replace=False))
 
         if len(valid_indices) < self.samples:
             # Fallback to general mask if too few flat areas found
             mask = np.zeros_like(avg_lum, dtype=bool)
             mask[margin_h:-margin_h, margin_w:-margin_w] = True
             idx = np.where(mask.ravel())[0]
-            valid_indices.extend(
-                np.random.choice(
-                    idx, min(self.samples - len(valid_indices), idx.size), replace=False
-                )
-            )
+            valid_indices.extend(np.random.choice(idx, min(self.samples - len(valid_indices), idx.size), replace=False))
 
         coords = np.unravel_index(valid_indices, (h, w))
         print(
-            f"    - Sampled {len(valid_indices)} points (Spatial Filter: {np.sum(flat_mask_rav)/flat_mask_rav.size:.1%} flat)"
+            f"    - Sampled {len(valid_indices)} points (Spatial Filter: {np.sum(flat_mask_rav) / flat_mask_rav.size:.1%} flat)"
         )
         return [img[coords].astype(np.float64) / 255.0 for img in images]
 
-    def _solve_coefficients(
-        self, m0: np.ndarray, m1: np.ndarray, R: np.ndarray, degree: int
-    ) -> np.ndarray:
+    def _solve_coefficients(self, m0: np.ndarray, m1: np.ndarray, R: np.ndarray, degree: int) -> np.ndarray:
         """[PAPER_STRICT] Eq 7 & 8: Solve for c_1...c_{N-1} with f(0)=0 and f(1)=I_max constraints."""
         n_range = np.arange(1, degree + 1)
         X = (m0[:, None] ** n_range) - (R[:, None] * (m1[:, None] ** n_range))
@@ -109,7 +100,7 @@ class Mitsunaga1999:
         coeffs[-1] = self.i_max - np.sum(res.x)
         return coeffs
 
-    def calibrate(self, images: List[np.ndarray], init_ratios: np.ndarray):
+    def calibrate(self, images: list[np.ndarray], init_ratios: np.ndarray):
         """[PAPER_STRICT] Section 6.4: Joint channel calibration (shared ratios and degree)."""
         sampled = self._get_samples(images)
         p_count = sampled[0].shape[0]
@@ -125,22 +116,18 @@ class Mitsunaga1999:
             current_coeffs = [None] * 3
 
             # Joint Iterative Solver
-            for iter_idx in range(50):
+            for _iter_idx in range(50):
                 # 1. Update Coefficients for each channel using current shared ratios
                 for c in range(3):
                     ch_samples = [s[:, c] for s in sampled]
-                    m_q, m_q1 = np.concatenate(ch_samples[:-1]), np.concatenate(
-                        ch_samples[1:]
-                    )
+                    m_q, m_q1 = np.concatenate(ch_samples[:-1]), np.concatenate(ch_samples[1:])
                     # Keep mask for individual channel saturation/noise
                     mask = (m_q > self.noise_level) & (m_q1 < self.sat_level)
                     if not np.any(mask):
                         mask = np.ones_like(m_q, dtype=bool)
 
                     r_flat = np.repeat(ratios, p_count)
-                    current_coeffs[c] = self._solve_coefficients(
-                        m_q[mask], m_q1[mask], r_flat[mask], d
-                    )
+                    current_coeffs[c] = self._solve_coefficients(m_q[mask], m_q1[mask], r_flat[mask], d)
 
                 # 2. Update Shared Ratios using all channels (Eq 10 & [CAVE_SUPPLEMENT])
                 for q in range(len(sampled) - 1):
@@ -157,12 +144,7 @@ class Mitsunaga1999:
                         ratios[q] = sia0 / sia1
 
                 # 3. Check Convergence (all channels) - [CAVE_SUPPLEMENT]
-                curr_f = np.array(
-                    [
-                        np.polyval(current_coeffs[c][::-1], np.linspace(0, 1, 101))
-                        for c in range(3)
-                    ]
-                )
+                curr_f = np.array([np.polyval(current_coeffs[c][::-1], np.linspace(0, 1, 101)) for c in range(3)])
                 if np.max(np.abs(curr_f - prev_f)) < self.convergence_thresh:
                     break
                 prev_f = curr_f
@@ -173,19 +155,13 @@ class Mitsunaga1999:
             for c in range(3):
                 poly_c = current_coeffs[c][::-1]
                 # [CAVE_SUPPLEMENT] mfCheckSimpleIncreasing equivalent
-                if not np.all(
-                    np.diff(np.polyval(poly_c, np.linspace(0, 1, 101))) >= -1e-7
-                ):
+                if not np.all(np.diff(np.polyval(poly_c, np.linspace(0, 1, 101))) >= -1e-7):
                     monotonic = False
                     break
                 ch_samples = [s[:, c] for s in sampled]
-                m_q, m_q1 = np.concatenate(ch_samples[:-1]), np.concatenate(
-                    ch_samples[1:]
-                )
+                m_q, m_q1 = np.concatenate(ch_samples[:-1]), np.concatenate(ch_samples[1:])
                 r_flat = np.repeat(ratios, p_count)
-                total_err += np.mean(
-                    (np.polyval(poly_c, m_q) - r_flat * np.polyval(poly_c, m_q1)) ** 2
-                )
+                total_err += np.mean((np.polyval(poly_c, m_q) - r_flat * np.polyval(poly_c, m_q1)) ** 2)
 
             if monotonic and total_err < best_err:
                 best_err = total_err
@@ -201,7 +177,7 @@ class Mitsunaga1999:
         print(f"    - Joint Optimal Order N={optimal_d}, Mean Error: {best_err:.6e}")
         return self.channel_coeffs, best_joint_ratios, optimal_d
 
-    def combine(self, images: List[np.ndarray]) -> np.ndarray:
+    def combine(self, images: list[np.ndarray]) -> np.ndarray:
         """[PAPER_STRICT] Section 5 & 6.3: SNR-weighted synthesis."""
         h, w, channels = images[0].shape
         rad_map = np.zeros((h, w, channels), dtype=np.float64)
@@ -231,9 +207,7 @@ class Mitsunaga1999:
             rad_map[:, :, c] = channel_rad
         return rad_map
 
-    def balance_chromaticity(
-        self, hdr: np.ndarray, images: List[np.ndarray]
-    ) -> np.ndarray:
+    def balance_chromaticity(self, hdr: np.ndarray, images: list[np.ndarray]) -> np.ndarray:
         """[PAPER_STRICT] Section 6.4 & [CAVE_SUPPLEMENT]: Chromaticity Alignment.
         Uses CAVE 'Best M' composite reference for maximum input SNR.
         """
@@ -266,14 +240,8 @@ class Mitsunaga1999:
         avg_ldr = np.mean(best_m, axis=2)
         neutral_mask = (
             (np.abs(best_m[:, :, 0] - avg_ldr) / (avg_ldr + 1e-5) < self.neutral_thresh)
-            & (
-                np.abs(best_m[:, :, 1] - avg_ldr) / (avg_ldr + 1e-5)
-                < self.neutral_thresh
-            )
-            & (
-                np.abs(best_m[:, :, 2] - avg_ldr) / (avg_ldr + 1e-5)
-                < self.neutral_thresh
-            )
+            & (np.abs(best_m[:, :, 1] - avg_ldr) / (avg_ldr + 1e-5) < self.neutral_thresh)
+            & (np.abs(best_m[:, :, 2] - avg_ldr) / (avg_ldr + 1e-5) < self.neutral_thresh)
         )
 
         mask = (avg_ldr > self.noise_level) & (avg_ldr < self.sat_level) & neutral_mask
@@ -297,9 +265,7 @@ class Mitsunaga1999:
         k_b = (b2 * a11 - b1 * a12) / denom
         scales = np.array([1.0, k_g, k_b])
         scales /= np.max(scales)
-        print(
-            f"    Chromaticity scales: R={scales[0]:.4f}, G={scales[1]:.4f}, B={scales[2]:.4f}"
-        )
+        print(f"    Chromaticity scales: R={scales[0]:.4f}, G={scales[1]:.4f}, B={scales[2]:.4f}")
 
         # Apply chromaticity alignment first
         hdr *= scales
@@ -318,9 +284,7 @@ def save_rgbe(filename: str, radiance_map: np.ndarray):
     max_c = np.max(radiance_map, axis=-1, keepdims=True)
     exp = np.where(max_c > 1e-32, np.floor(np.log2(max_c) + 129), 0).astype(np.uint8)
     scale = np.power(2.0, exp.astype(np.float32) - 128)
-    mantissa = np.where(
-        exp > 0, np.clip(radiance_map * 256.0 / scale, 0, 255), 0
-    ).astype(np.uint8)
+    mantissa = np.where(exp > 0, np.clip(radiance_map * 256.0 / scale, 0, 255), 0).astype(np.uint8)
     with open(filename, "wb") as f:
         f.write(b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\nEXPOSURE=1.0\n\n")
         f.write(f"-Y {h} +X {w}\n".encode())
@@ -337,16 +301,14 @@ def save_rgbe(filename: str, radiance_map: np.ndarray):
                 )
 
 
-def load_image_series(directory: str) -> Tuple[List[np.ndarray], np.ndarray]:
+def load_image_series(directory: str) -> tuple[list[np.ndarray], np.ndarray]:
     dir_path = Path(directory)
-    with open(dir_path / "image_list.txt", "r") as f:
+    with open(dir_path / "image_list.txt") as f:
         f.readline()
         n = int(f.readline().strip())
         f.readline()
         data = [f.readline().split() for _ in range(n)]
-    imgs = [
-        cv2.cvtColor(cv2.imread(str(dir_path / d[0])), cv2.COLOR_BGR2RGB) for d in data
-    ]
+    imgs = [cv2.cvtColor(cv2.imread(str(dir_path / d[0])), cv2.COLOR_BGR2RGB) for d in data]
     times = np.array([1.0 / float(d[1]) for d in data])
     idx = np.argsort(times)
     return [imgs[i] for i in idx], times[idx]

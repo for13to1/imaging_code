@@ -12,4 +12,33 @@ dependencies = [
     "scipy>=1.17.1",
     "bm3d>=4.0.3",
     "bm4d>=4.2.5",
+    "ruff>=0.15.22",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "E741",   # ambiguous variable name (I, O, l — common in math/academic code)
+    "SIM108", # use ternary operator (if-else clearer for complex branches)
+    "RUF001", # ambiguous unicode in string (Chinese punctuation)
+    "RUF002", # ambiguous unicode in docstring
+    "RUF003", # ambiguous unicode in comment
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

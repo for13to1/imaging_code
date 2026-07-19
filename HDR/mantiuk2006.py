@@ -11,11 +11,11 @@ A Perceptual Framework for Contrast Processing of High Dynamic Range Images (Man
 - Section 8: Color reconstruction with adaptive range mapping (Eq. 26).
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
+
+import cv2
+import numpy as np
 from scipy.sparse.linalg import LinearOperator, bicgstab
-from typing import List, Tuple, Optional
 
 
 class Mantiuk2006:
@@ -40,7 +40,7 @@ class Mantiuk2006:
         # Rec. 709 luminance weights
         self.Y_WEIGHTS = np.array([0.2126, 0.7152, 0.0722])
 
-    def _build_gaussian_pyramid(self, x: np.ndarray) -> List[np.ndarray]:
+    def _build_gaussian_pyramid(self, x: np.ndarray) -> list[np.ndarray]:
         pyramid = [x]
         current = x
         for _ in range(self.pyramid_levels - 1):
@@ -67,8 +67,8 @@ class Mantiuk2006:
         return 1.0 / (delta_G + 1e-8)
 
     def _modify_contrast_equalization(
-        self, R_list: List[Tuple[np.ndarray, np.ndarray]]
-    ) -> List[Tuple[np.ndarray, np.ndarray]]:
+        self, R_list: list[tuple[np.ndarray, np.ndarray]]
+    ) -> list[tuple[np.ndarray, np.ndarray]]:
         # [PAPER_STRICT] Section 5
         all_responses = []
         for Rx, Ry in R_list:
@@ -114,8 +114,8 @@ class Mantiuk2006:
     def _solve_optimization(
         self,
         B: np.ndarray,
-        pyramid_shapes: List[Tuple[int, int]],
-        p_list: List[Tuple[np.ndarray, np.ndarray]],
+        pyramid_shapes: list[tuple[int, int]],
+        p_list: list[tuple[np.ndarray, np.ndarray]],
         x0: np.ndarray,
     ) -> np.ndarray:
         h0, w0 = pyramid_shapes[0]
@@ -124,7 +124,7 @@ class Mantiuk2006:
         def matvec(v):
             x = v.reshape(h0, w0)
             x_pyr = [x]
-            for i in range(1, len(pyramid_shapes)):
+            for _i in range(1, len(pyramid_shapes)):
                 # [PAPER_STRICT] Use float64 for precision
                 x_pyr.append(cv2.pyrDown(x_pyr[-1]))
 
@@ -185,9 +185,7 @@ class Mantiuk2006:
 
         # Step 2: Modify Response
         if self.mode == "contrast_mapping":
-            R_hat_list = [
-                (Rx * self.linear_scale, Ry * self.linear_scale) for Rx, Ry in R_list
-            ]
+            R_hat_list = [(Rx * self.linear_scale, Ry * self.linear_scale) for Rx, Ry in R_list]
         else:  # contrast_equalization
             R_hat_list = self._modify_contrast_equalization(R_list)
 
@@ -195,13 +193,9 @@ class Mantiuk2006:
         G_hat_list = []
         p_list = []
         for Rx_hat, Ry_hat in R_hat_list:
-            Gx_hat, Gy_hat = self._transducer_inverse(Rx_hat), self._transducer_inverse(
-                Ry_hat
-            )
+            Gx_hat, Gy_hat = self._transducer_inverse(Rx_hat), self._transducer_inverse(Ry_hat)
             G_hat_list.append((Gx_hat, Gy_hat))
-            p_list.append(
-                (self._compute_weights(Gx_hat), self._compute_weights(Gy_hat))
-            )
+            p_list.append((self._compute_weights(Gx_hat), self._compute_weights(Gy_hat)))
 
         # Step 4: Compute RHS B (Eq. 24)
         def compute_B(k):
@@ -237,9 +231,7 @@ class Mantiuk2006:
         log_L = x[:, :, np.newaxis]
 
         # Eq. 26
-        C_out = (X[:, :, np.newaxis] - l_min + self.saturation * (log_img - log_L)) / (
-            l_max - l_min
-        )
+        C_out = (X[:, :, np.newaxis] - l_min + self.saturation * (log_img - log_L)) / (l_max - l_min)
 
         # Map [0, 1] to [0, 255]
         res = (np.clip(C_out, 0.0, 1.0) * 255.0).astype(np.uint8)
@@ -273,9 +265,7 @@ if __name__ == "__main__":
 
     print("--- Mantiuk 2006 [STRICT REPRODUCTION] ---")
     hdr = load_hdr(str(in_p))
-    tmo = Mantiuk2006(
-        mode=args.mode, linear_scale=args.scale, saturation=args.saturation
-    )
+    tmo = Mantiuk2006(mode=args.mode, linear_scale=args.scale, saturation=args.saturation)
     result = tmo.process(hdr)
     cv2.imwrite(out_p, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
     print(f"Saved: {out_p}")

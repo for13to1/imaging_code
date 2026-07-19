@@ -7,9 +7,10 @@ Fast bilateral filtering for the display of high-dynamic-range images.
 ACM transactions on graphics (TOG), 21(3), 257-266.
 """
 
-import numpy as np
-import cv2
 from pathlib import Path
+
+import cv2
+import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
@@ -183,9 +184,7 @@ def load_hdr(path: str) -> np.ndarray:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Durand 2002 Fast Bilateral TMO - Strict Reference Implementation"
-    )
+    parser = argparse.ArgumentParser(description="Durand 2002 Fast Bilateral TMO - Strict Reference Implementation")
     parser.add_argument(
         "input",
         type=str,
@@ -239,9 +238,7 @@ if __name__ == "__main__":
         args.output = str(out_dir / f"{args.input}_durand2002.png")
 
     print(f"--- Processing {dataset_path.name} with Fast Bilateral Filter ---")
-    print(
-        f"Parameters: Base Contrast={args.base_contrast}, sigma_r={args.sigma_r}, Subsample={args.subsample}"
-    )
+    print(f"Parameters: Base Contrast={args.base_contrast}, sigma_r={args.sigma_r}, Subsample={args.subsample}")
 
     img_hdr = load_hdr(str(dataset_path))
     tmo = Durand2002(

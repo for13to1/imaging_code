@@ -8,10 +8,10 @@ Adaptive logarithmic mapping for displaying high contrast scenes.
 Computer Graphics Forum, 22(3), 419-426.
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
-from typing import Tuple
 
 
 class Drago2003:
@@ -63,7 +63,7 @@ class Drago2003:
         # Pade[1,1] approximant: ln(1+x) approx x / (1 + x/2)
         return x / (1.0 + x * 0.5)
 
-    def _compute_gamma_params(self) -> Tuple[float, float, float]:
+    def _compute_gamma_params(self) -> tuple[float, float, float]:
         """[PAPER_STRICT] Section 4: Solve for 'start' and 'slope' of tangent BT.709 curve."""
         power = 0.9 / self.gamma
         if abs(power - 1.0) < 1e-5:
@@ -96,9 +96,7 @@ class Drago2003:
             return res
         return np.log(x + 1.0)
 
-    def process(
-        self, img_hdr: np.ndarray, fixation: Tuple[int, int] = None
-    ) -> np.ndarray:
+    def process(self, img_hdr: np.ndarray, fixation: tuple[int, int] | None = None) -> np.ndarray:
         """
         Adaptive Logarithmic Mapping (Section 3.3).
 
@@ -160,9 +158,7 @@ class Drago2003:
             L_w_tile = L_w_padded.reshape(h3, 3, w3, 3).mean(axis=(1, 3))
 
             # [ENGINEERING_ADAPTATION] Safe division for ratio computation
-            ratio_tile = np.divide(
-                L_w_tile, L_wmax, out=np.zeros_like(L_w_tile), where=L_wmax > 1e-9
-            )
+            ratio_tile = np.divide(L_w_tile, L_wmax, out=np.zeros_like(L_w_tile), where=L_wmax > 1e-9)
             base_tile = 2.0 + np.power(ratio_tile, bias_power) * 8.0
 
             # Upsample base back to full resolution
@@ -171,9 +167,7 @@ class Drago2003:
         else:
             # [PAPER_STRICT] Standard per-pixel base calculation.
             # [ENGINEERING_ADAPTATION] Safe division for ratio computation
-            ratio_w = np.divide(
-                L_w, L_wmax, out=np.zeros_like(L_w), where=L_wmax > 1e-9
-            )
+            ratio_w = np.divide(L_w, L_wmax, out=np.zeros_like(L_w), where=L_wmax > 1e-9)
             base = 2.0 + np.power(ratio_w, bias_power) * 8.0
 
         # [PAPER_STRICT] Equation (4) adaptive logarithmic mapping.
@@ -210,9 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", type=float, default=2.2)
     parser.add_argument("--center", action="store_true")
     parser.add_argument("--fast", action="store_true")
-    parser.add_argument(
-        "--pade", type=float, default=0.1, help="Pade approximation threshold"
-    )
+    parser.add_argument("--pade", type=float, default=0.1, help="Pade approximation threshold")
     parser.add_argument("--output", type=str)
 
     args = parser.parse_args()
@@ -222,9 +214,7 @@ if __name__ == "__main__":
     if not in_p.exists():
         in_p = Path(__file__).parent / "dataset" / args.input / f"{args.input}.hdr"
 
-    out_p = args.output or str(
-        Path(__file__).parent / "output" / f"{in_p.stem}_drago2003.png"
-    )
+    out_p = args.output or str(Path(__file__).parent / "output" / f"{in_p.stem}_drago2003.png")
     Path(out_p).parent.mkdir(parents=True, exist_ok=True)
 
     try:
